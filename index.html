@@ -7,12 +7,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* CSS Animatsioonid ja taust */
+        /* Animeeritud tume taust */
         body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(-45deg, #0f172a, #1e293b, #0f172a, #172554);
             background-size: 400% 400%;
             animation: gradientBG 15s ease infinite;
         }
+
         @keyframes gradientBG {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
@@ -32,33 +33,31 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 4rem;
+            font-size: 3rem;
             font-weight: 900;
-            color: rgba(255, 255, 255, 0.03);
+            color: rgba(255, 255, 255, 0.04);
             pointer-events: none;
             white-space: nowrap;
         }
 
         .casino-table-border {
             padding: 12px;
-            background: linear-gradient(to bottom, #4a3424, #2b1d14);
+            background: linear-gradient(to bottom, #3f2e24, #1f1611);
             border-radius: 130px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
         }
 
-        /* Kaartide animatsioonid */
         .playing-card {
             transform-style: preserve-3d;
             transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
             position: absolute;
             top: -200px;
-            right: 0;
+            right: -200px;
             opacity: 0;
             transform: scale(0.5) rotate(180deg);
             z-index: 20;
         }
         
-        /* Kohad, kuhu kaardid maanduvad */
         .card-slot {
             position: relative;
             width: 5rem;
@@ -116,7 +115,6 @@
 </head>
 <body class="text-white font-sans min-h-screen flex flex-col">
 
-    <!-- Navbar -->
     <header class="bg-slate-900/80 backdrop-blur p-4 border-b border-slate-800 flex justify-between items-center shadow-lg relative z-40">
         <div class="flex items-center gap-3">
             <span class="text-2xl">🦆</span>
@@ -128,9 +126,7 @@
         </div>
     </header>
 
-    <!-- Main Casino Layout -->
-    <main class="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
-        
+    <main class="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 relative">
         <!-- Mängulaud -->
         <div class="w-full max-w-5xl casino-table-border relative">
             <div class="felt-table h-[450px] sm:h-[500px] w-full flex flex-col justify-between p-6 sm:p-12 relative overflow-hidden">
@@ -219,12 +215,18 @@
         </div>
     </div>
 
+    <!-- Custom Toast Notification (Alerti asemel) -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 border border-slate-700 text-white px-6 py-4 rounded-xl shadow-2xl transform translate-y-24 opacity-0 transition-all duration-300 z-50 pointer-events-none flex items-center gap-3">
+        <span class="text-xl">🦆</span>
+        <span id="toast-message" class="font-semibold"></span>
+    </div>
+
     <script>
         // --- SUPABASE CONFIGURATION ---
         const SUPABASE_URL = "https://xvvptdsdacuuzydaksbv.supabase.co"; 
-        const SUPABASE_ANON_KEY = "sb_publishable_auqaSufjcnOsFaxtaTKSSQ_IietIBhh"; // <<-- Määra see ära!
+        const SUPABASE_ANON_KEY = "sb_publishable_auqaSufjcnOsFaxtaTKSSQ_IietIBhh"; // <<-- KLEEBI SIIA OMA UUS ANON VÕTI
         
-        // FIX: Variable name changed from supabase to supabaseClient
+        // Loome kliendi. Kasutame nime supabaseClient, et vältida konflikti.
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- GLOBAL STATE ---
@@ -238,22 +240,33 @@
         let gameActive = false;
         let isDealing = false;
 
-        // --- MODAL UTILS ---
+        // --- UTILS (Toast & Modals) ---
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = message;
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 4000);
+        }
+
         function openModal(id) {
             document.getElementById(id).classList.remove('hidden');
             document.getElementById(id).classList.add('flex');
         }
+
         function closeModal(id) {
             document.getElementById(id).classList.add('hidden');
             document.getElementById(id).classList.remove('flex');
         }
 
+        // --- STREAMING_CHUNK:Defining Auth and Database Functions... ---
         // --- AUTH & DATABASE ---
         async function loginDiscord() {
             const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'discord',
             });
-            if (error) console.error("Login viga:", error);
+            if (error) showToast("Sisselogimise viga: " + error.message);
         }
 
         async function logout() {
@@ -263,6 +276,7 @@
             currentBalance = 0;
             resetTable();
             updateTopBar(false);
+            showToast("Oled välja logitud.");
         }
 
         async function fetchUserProfile(user) {
@@ -288,7 +302,7 @@
 
         async function saveMcUsername() {
             const input = document.getElementById('mc-username-input').value.trim();
-            if (!input) return alert("Palun sisesta nimi.");
+            if (!input) return showToast("Palun sisesta nimi.");
 
             const { error } = await supabaseClient
                 .from('profiles')
@@ -299,8 +313,9 @@
                 mcUsername = input;
                 closeModal('mc-name-modal');
                 updateTopBar(true);
+                showToast("Nimi salvestatud! Oled valmis mängima.");
             } else {
-                alert("Viga nime salvestamisel: " + error.message);
+                showToast("Viga nime salvestamisel: " + error.message);
             }
         }
 
@@ -319,8 +334,12 @@
             const targetName = document.getElementById('transfer-target').value.trim();
             const amount = parseInt(document.getElementById('transfer-amount').value);
 
-            if (!targetName || targetName.toLowerCase() === mcUsername.toLowerCase()) return alert("Vigane saaja.");
-            if (isNaN(amount) || amount <= 0 || amount > currentBalance) return alert("Pole piisavalt teemante.");
+            if (!targetName || targetName.toLowerCase() === mcUsername.toLowerCase()) {
+                return showToast("Vigane saaja nimi.");
+            }
+            if (isNaN(amount) || amount <= 0 || amount > currentBalance) {
+                return showToast("Pole piisavalt teemante saatmiseks.");
+            }
 
             const { data: targetData, error: targetError } = await supabaseClient
                 .from('profiles')
@@ -328,7 +347,9 @@
                 .ilike('mc_username', targetName)
                 .single();
 
-            if (targetError || !targetData) return alert("Mängijat ei leitud!");
+            if (targetError || !targetData) {
+                return showToast("Mängijat ei leitud andmebaasist!");
+            }
 
             await updateDatabaseBalance(currentBalance - amount);
 
@@ -337,12 +358,13 @@
                 .update({ balance: targetData.balance + amount })
                 .eq('id', targetData.id);
 
-            alert(`Edukalt saadetud ${amount} 💎 mängijale ${targetName}!`);
+            showToast(`Edukalt saadetud ${amount} 💎 mängijale ${targetName}!`);
             closeModal('transfer-modal');
             document.getElementById('transfer-target').value = '';
             document.getElementById('transfer-amount').value = '';
         }
 
+        // --- STREAMING_CHUNK:Building UI Update Functions... ---
         // --- UI UPDATES ---
         function updateTopBar(isLoggedIn) {
             const authContainer = document.getElementById('auth-section');
@@ -368,7 +390,7 @@
                         Logi sisse Discordiga
                     </button>
                 `;
-                document.getElementById('controls-panel').innerHTML = `<div class="text-slate-400 font-semibold text-sm sm:text-lg animate-pulse text-center w-full">Mängimiseks või vaatamiseks logi sisse.</div>`;
+                document.getElementById('controls-panel').innerHTML = `<div class="text-slate-400 font-semibold text-sm sm:text-lg animate-pulse text-center w-full">Mängimiseks logi sisse.</div>`;
             }
         }
 
@@ -402,6 +424,7 @@
             if(standBtn) standBtn.disabled = !enabled;
         }
 
+        // --- STREAMING_CHUNK:Creating the Deck and Animation Logic... ---
         // --- CARDS & ANIMATION ---
         const suits = ['♠', '♥', '♦', '♣'];
         const values = [
@@ -434,7 +457,6 @@
             return score;
         }
 
-        // Animatsioon
         function animateCardDeal(card, targetContainerId, isHidden = false, delay = 0) {
             return new Promise(resolve => {
                 const targetContainer = document.getElementById(targetContainerId);
@@ -498,7 +520,7 @@
             dealerHand = [];
         }
 
-        // --- GAMEPLAY LOGIC ---
+        // --- STREAMING_CHUNK:Implementing the Blackjack Engine... ---
         async function startNewGame() {
             if (gameActive || isDealing) return;
             
@@ -507,7 +529,7 @@
 
             currentBet = parseInt(betInput.value);
             if (isNaN(currentBet) || currentBet <= 0 || currentBet > currentBalance) {
-                alert("Vigane panus või pole piisavalt teemante.");
+                showToast("Vigane panus või pole piisavalt teemante.");
                 return;
             }
 
@@ -568,6 +590,7 @@
             isDealing = true;
             toggleGameButtons(false);
 
+            // Pööra diileri peidetud kaart ringi
             const hiddenCard = document.getElementById('hidden-dealer-card');
             if(hiddenCard) {
                 const card = dealerHand[1];
@@ -609,7 +632,7 @@
             gameActive = false;
             isDealing = false;
             
-            showResultBanner(message, result === 'win');
+            showResultBanner(message, result === 'win', false);
             
             if (result === 'win') {
                 const winnings = Math.floor(currentBet * 2); 
