@@ -58,7 +58,7 @@
             z-index: 20;
         }
         
-        /* Kohad, kuhu kaardid maanduvad (suhteline asukoht flex containeri suhtes) */
+        /* Kohad, kuhu kaardid maanduvad */
         .card-slot {
             position: relative;
             width: 5rem;
@@ -221,11 +221,11 @@
 
     <script>
         // --- SUPABASE CONFIGURATION ---
-        // VÄGA TÄHTIS: Muuda need kaks rida oma õigete Supabase'i võtmetega!
         const SUPABASE_URL = "https://xvvptdsdacuuzydaksbv.supabase.co"; 
-        const SUPABASE_ANON_KEY = "sb_secret_XfpKNGtqmi1JVmyw70-Myw_ysLKbHYy";
+        const SUPABASE_ANON_KEY = "sb_secret_y7TWMt39rQoNuCK9ZCjkWg_trfvX_vV"; // <<-- Määra see ära!
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // FIX: Variable name changed from supabase to supabaseClient
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- GLOBAL STATE ---
         let currentUser = null;
@@ -250,14 +250,14 @@
 
         // --- AUTH & DATABASE ---
         async function loginDiscord() {
-            const { error } = await supabase.auth.signInWithOAuth({
+            const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'discord',
             });
             if (error) console.error("Login viga:", error);
         }
 
         async function logout() {
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             currentUser = null;
             mcUsername = null;
             currentBalance = 0;
@@ -267,7 +267,7 @@
 
         async function fetchUserProfile(user) {
             currentUser = user;
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('profiles')
                 .select('mc_username, balance')
                 .eq('id', user.id)
@@ -290,7 +290,7 @@
             const input = document.getElementById('mc-username-input').value.trim();
             if (!input) return alert("Palun sisesta nimi.");
 
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('profiles')
                 .update({ mc_username: input })
                 .eq('id', currentUser.id);
@@ -306,7 +306,7 @@
 
         async function updateDatabaseBalance(newBalance) {
             currentBalance = newBalance;
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('profiles')
                 .update({ balance: newBalance })
                 .eq('id', currentUser.id);
@@ -322,7 +322,7 @@
             if (!targetName || targetName.toLowerCase() === mcUsername.toLowerCase()) return alert("Vigane saaja.");
             if (isNaN(amount) || amount <= 0 || amount > currentBalance) return alert("Pole piisavalt teemante.");
 
-            const { data: targetData, error: targetError } = await supabase
+            const { data: targetData, error: targetError } = await supabaseClient
                 .from('profiles')
                 .select('id, balance')
                 .ilike('mc_username', targetName)
@@ -332,7 +332,7 @@
 
             await updateDatabaseBalance(currentBalance - amount);
 
-            await supabase
+            await supabaseClient
                 .from('profiles')
                 .update({ balance: targetData.balance + amount })
                 .eq('id', targetData.id);
@@ -368,7 +368,7 @@
                         Logi sisse Discordiga
                     </button>
                 `;
-                document.getElementById('controls-panel').innerHTML = `<div class="text-slate-400 font-semibold text-sm sm:text-lg animate-pulse text-center w-full">Mängimiseks sisenemine vajalik.</div>`;
+                document.getElementById('controls-panel').innerHTML = `<div class="text-slate-400 font-semibold text-sm sm:text-lg animate-pulse text-center w-full">Mängimiseks või vaatamiseks logi sisse.</div>`;
             }
         }
 
@@ -462,7 +462,7 @@
 
                 setTimeout(() => {
                     el.classList.add('dealt');
-                    setTimeout(resolve, 500); // Oota kuni animatsioon lõppeb
+                    setTimeout(resolve, 500);
                 }, delay);
             });
         }
@@ -475,7 +475,7 @@
                 const dScore = calculateScore(dealerHand);
                 document.getElementById('dealer-score-label').innerText = dScore;
             } else if (dealerHand.length > 0) {
-                document.getElementById('dealer-score-label').innerText = dealerHand[0].val; // Näita ainult esimese kaardi väärtust
+                document.getElementById('dealer-score-label').innerText = dealerHand[0].val;
             }
         }
 
@@ -521,7 +521,6 @@
 
             deck = createDeck();
             
-            // Jaga kaardid ükshaaval väikese viitega
             const c1 = deck.pop(); playerHand.push(c1);
             await animateCardDeal(c1, 'player-hand', false, 0);
             
@@ -532,7 +531,7 @@
             await animateCardDeal(c3, 'player-hand', false, 400);
             
             const c4 = deck.pop(); dealerHand.push(c4);
-            await animateCardDeal(c4, 'dealer-hand', true, 600); // Peidetud kaart
+            await animateCardDeal(c4, 'dealer-hand', true, 600);
             
             updateScores(false);
             isDealing = false;
@@ -569,7 +568,6 @@
             isDealing = true;
             toggleGameButtons(false);
 
-            // Paljasta diileri kaart
             const hiddenCard = document.getElementById('hidden-dealer-card');
             if(hiddenCard) {
                 const card = dealerHand[1];
@@ -584,7 +582,6 @@
             updateScores(true);
             await new Promise(r => setTimeout(r, 500));
 
-            // Diiler tõmbab kaarte
             let dealerScore = calculateScore(dealerHand);
             while (dealerScore < 17) {
                 const newCard = deck.pop();
@@ -602,7 +599,7 @@
             } else if (playerScore > dealerScore) {
                 endGame('win', 'Sinu võit!');
             } else if (playerScore === dealerScore) {
-                endGame('lose', `Viik (${playerScore}). Kasiino võidab!`); // House rules
+                endGame('lose', `Viik (${playerScore}). Kasiino võidab!`);
             } else {
                 endGame('lose', 'Diiler võidab.');
             }
@@ -621,11 +618,12 @@
             
             setTimeout(() => {
                 toggleDealControls(true);
-            }, 2000); // Luba uut mängu 2s pärast
+            }, 2000);
         }
 
         // --- INIT ---
-        supabase.auth.onAuthStateChange((event, session) => {
+        updateTopBar(false);
+        supabaseClient.auth.onAuthStateChange((event, session) => {
             if (session?.user) {
                 fetchUserProfile(session.user);
             } else {
