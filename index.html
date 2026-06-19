@@ -4,7 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pardi Kasiino</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind on nüüd laetud turvalisemal viisil, mis ei blokeeri lehte -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Supabase on nüüd laetud moodulina, et vältida nimekonflikte -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* Animeeritud tume taust */
@@ -221,13 +237,16 @@
         <span id="toast-message" class="font-semibold"></span>
     </div>
 
-    <script>
+    <script type="module">
+        // Laeme Supabase otse moodulina, et poleks vaja "window.supabase" kasutada
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
         // --- SUPABASE CONFIGURATION ---
         const SUPABASE_URL = "https://xvvptdsdacuuzydaksbv.supabase.co"; 
-        const SUPABASE_ANON_KEY = "sb_publishable_auqaSufjcnOsFaxtaTKSSQ_IietIBhh"; 
+        const SUPABASE_ANON_KEY = "sb_publishable_auqaSufjcnOsFaxtaTKSSQ_IietIBhh"; // <<-- KLEEBI SIIA OMA UUS ANON VÕTI
         
         // Loome kliendi
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- GLOBAL STATE ---
         let currentUser = null;
@@ -239,6 +258,17 @@
         let currentBet = 0;
         let gameActive = false;
         let isDealing = false;
+
+        // Teeme funktsioonid globaalseks, et HTML nuppude onclick="" töötaks
+        window.startNewGame = startNewGame;
+        window.hit = hit;
+        window.stand = stand;
+        window.loginDiscord = loginDiscord;
+        window.logout = logout;
+        window.saveMcUsername = saveMcUsername;
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.executeTransfer = executeTransfer;
 
         // --- UTILS (Toast & Modals) ---
         function showToast(message) {
