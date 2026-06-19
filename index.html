@@ -215,7 +215,7 @@
         </div>
     </div>
 
-    <!-- Custom Toast Notification (Alerti asemel) -->
+    <!-- Custom Toast Notification -->
     <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 border border-slate-700 text-white px-6 py-4 rounded-xl shadow-2xl transform translate-y-24 opacity-0 transition-all duration-300 z-50 pointer-events-none flex items-center gap-3">
         <span class="text-xl">🦆</span>
         <span id="toast-message" class="font-semibold"></span>
@@ -224,9 +224,9 @@
     <script>
         // --- SUPABASE CONFIGURATION ---
         const SUPABASE_URL = "https://xvvptdsdacuuzydaksbv.supabase.co"; 
-        const SUPABASE_ANON_KEY = "sb_publishable_auqaSufjcnOsFaxtaTKSSQ_IietIBhh"; // <<-- KLEEBI SIIA OMA UUS ANON VÕTI
+        const SUPABASE_ANON_KEY = "sb_publishable_auqaSufjcnOsFaxtaTKSSQ_IietIBhh"; 
         
-        // Loome kliendi. Kasutame nime supabaseClient, et vältida konflikti.
+        // Loome kliendi
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- GLOBAL STATE ---
@@ -260,7 +260,6 @@
             document.getElementById(id).classList.remove('flex');
         }
 
-        // --- STREAMING_CHUNK:Defining Auth and Database Functions... ---
         // --- AUTH & DATABASE ---
         async function loginDiscord() {
             const { error } = await supabaseClient.auth.signInWithOAuth({
@@ -364,7 +363,6 @@
             document.getElementById('transfer-amount').value = '';
         }
 
-        // --- STREAMING_CHUNK:Building UI Update Functions... ---
         // --- UI UPDATES ---
         function updateTopBar(isLoggedIn) {
             const authContainer = document.getElementById('auth-section');
@@ -424,7 +422,6 @@
             if(standBtn) standBtn.disabled = !enabled;
         }
 
-        // --- STREAMING_CHUNK:Creating the Deck and Animation Logic... ---
         // --- CARDS & ANIMATION ---
         const suits = ['♠', '♥', '♦', '♣'];
         const values = [
@@ -520,7 +517,6 @@
             dealerHand = [];
         }
 
-        // --- STREAMING_CHUNK:Implementing the Blackjack Engine... ---
         async function startNewGame() {
             if (gameActive || isDealing) return;
             
@@ -590,7 +586,6 @@
             isDealing = true;
             toggleGameButtons(false);
 
-            // Pööra diileri peidetud kaart ringi
             const hiddenCard = document.getElementById('hidden-dealer-card');
             if(hiddenCard) {
                 const card = dealerHand[1];
