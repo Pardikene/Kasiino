@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pardi Kasiino</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Laua ja tausta stiilid */
+        /* Animeeritud tume taust */
         body {
-            background: linear-gradient(-45deg, #0f172a, #1e293b, #0f172a, #020617);
+            background: linear-gradient(-45deg, #0f172a, #1e293b, #0f172a, #111827);
             background-size: 400% 400%;
             animation: gradientBG 15s ease infinite;
+            color: #f8fafc;
         }
 
         @keyframes gradientBG {
@@ -19,27 +21,28 @@
             100% { background-position: 0% 50%; }
         }
 
+        /* Laua stiil */
         .casino-table-border {
-            background: linear-gradient(145deg, #2a1f1a, #1a120e);
+            background: linear-gradient(145deg, #1e293b, #0f172a);
             border-radius: 120px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 5px 15px rgba(255,255,255,0.1);
-            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.05);
+            padding: 15px;
         }
         .felt-table {
             background: radial-gradient(ellipse at center, #0f6c3f 0%, #06381e 100%);
             border-radius: 100px;
-            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
             border: 2px solid #042413;
             position: relative;
             overflow: hidden;
         }
         
-        /* Kaartide stiilid ja animatsioonid */
+        /* Kaardid ja animatsioonid */
         .playing-card {
-            width: 80px;
-            height: 112px;
-            border-radius: 8px;
-            box-shadow: -2px 2px 10px rgba(0,0,0,0.4);
+            width: 70px;
+            height: 100px;
+            border-radius: 6px;
+            box-shadow: -2px 2px 8px rgba(0,0,0,0.4);
             position: relative;
             background-color: white;
             color: black;
@@ -47,40 +50,36 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 8px;
+            padding: 6px;
             border: 1px solid #ccc;
-            /* Algselt nähtamatu ja ootab animatsiooni */
             opacity: 0;
             will-change: transform, opacity;
+            z-index: 10;
         }
-        .card-back {
-            background: repeating-linear-gradient(
-                45deg,
-                #60a5fa,
-                #60a5fa 10px,
-                #2563eb 10px,
-                #2563eb 20px
-            );
-            border: 4px solid white;
+        @media (min-width: 640px) {
+            .playing-card { width: 80px; height: 112px; }
         }
         
-        /* Tekstide efektid */
-        .glow-text {
-            text-shadow: 0 0 10px rgba(234, 179, 8, 0.5);
+        .card-back {
+            background: #1e40af;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px);
+            border: 3px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* Tulemuse banner (Võit/Kaotus) */
         .result-banner {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0);
-            padding: 1rem 3rem;
+            padding: 1rem 2rem;
             border-radius: 1rem;
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 900;
             text-transform: uppercase;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
             opacity: 0;
             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 50;
@@ -103,119 +102,127 @@
         }
     </style>
 </head>
-<body class="text-white font-sans min-h-screen flex flex-col">
+<body class="font-sans min-h-screen flex flex-col">
 
-    <!-- Navbar -->
-    <header class="bg-gray-900/80 backdrop-blur-md border-b border-gray-800 p-4 sticky top-0 z-40">
+    <header class="bg-slate-900/50 backdrop-blur-md border-b border-slate-800 p-4 sticky top-0 z-40">
         <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="w-12 h-12 flex items-center justify-center bg-gray-800 rounded-full shadow-inner border border-gray-700">
-                <span class="text-3xl">🦆</span>
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🦆</span>
+                <span class="text-sm font-semibold text-slate-400 tracking-widest uppercase">Kasiino</span>
             </div>
             
             <div id="auth-section" class="flex items-center gap-4 w-full md:w-auto justify-end">
                 <!-- Sisselogimata olek -->
-                <button id="login-btn" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 px-6 py-2 rounded-full font-bold transition shadow-lg shadow-yellow-500/20">Logi sisse</button>
+                <button id="login-discord-btn" class="bg-[#5865F2] hover:bg-[#4752C4] text-white px-6 py-2 rounded-lg font-bold transition shadow-lg flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+                    Login with Discord
+                </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Game Area -->
     <main class="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
-        
-        <!-- Laud -->
         <div class="w-full max-w-5xl casino-table-border">
-            <div class="felt-table h-[500px] w-full flex flex-col justify-between p-6 sm:p-12">
+            <div class="felt-table h-[450px] sm:h-[500px] w-full flex flex-col justify-between p-6 sm:p-12">
                 
-                <!-- Kaardipakk (Füüsiline asukoht laual) -->
-                <div id="deck-position" class="absolute top-8 right-8 w-[80px] h-[112px] card-back rounded-lg shadow-2xl flex items-center justify-center hidden">
-                    <span class="text-white/50 font-bold text-xl">🦆</span>
+                <!-- Paki asukoht -->
+                <div id="deck-position" class="absolute top-6 right-6 w-[70px] h-[100px] sm:w-[80px] sm:h-[112px] card-back rounded-lg shadow-2xl">
+                    <span class="text-white/50 text-2xl">🦆</span>
                 </div>
 
-                <!-- Tulemuse teavitus -->
-                <div id="result-banner" class="result-banner bg-gray-900 border-4 text-white">VÕIT!</div>
+                <div id="result-banner" class="result-banner bg-slate-900 border-4 text-white">VÕIT!</div>
 
                 <!-- Diileri ala -->
                 <div class="flex flex-col items-center z-10">
-                    <div class="text-xs sm:text-sm uppercase tracking-widest text-emerald-200/50 font-bold mb-2 bg-black/30 px-4 py-1 rounded-full">
-                        Diiler <span id="dealer-score-label" class="text-yellow-400 ml-1"></span>
+                    <div class="text-xs sm:text-sm uppercase tracking-widest text-emerald-200/50 font-bold mb-2 bg-black/40 px-4 py-1 rounded-full">
+                        Dealer <span id="dealer-score-label" class="text-white ml-1"></span>
                     </div>
-                    <div id="dealer-hand" class="flex gap-[-2rem] sm:gap-2 h-32 justify-center items-center">
-                        <!-- Kaardid ilmuvad siia -->
-                    </div>
+                    <div id="dealer-hand" class="flex gap-[-2rem] sm:gap-2 h-28 sm:h-32 justify-center items-center"></div>
+                </div>
+
+                <!-- Keskne Info -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div id="table-message" class="text-white/20 font-bold text-xl sm:text-3xl tracking-widest uppercase"></div>
                 </div>
 
                 <!-- Mängija ala -->
                 <div class="flex flex-col items-center z-10">
-                    <div id="player-hand" class="flex gap-[-2rem] sm:gap-2 h-32 justify-center items-center mb-2">
-                        <!-- Kaardid ilmuvad siia -->
-                    </div>
-                    <div class="text-xs sm:text-sm uppercase tracking-widest text-emerald-200/50 font-bold bg-black/30 px-4 py-1 rounded-full">
-                        Sinu käsi <span id="player-score-label" class="text-yellow-400 ml-1"></span>
+                    <div id="player-hand" class="flex gap-[-2rem] sm:gap-2 h-28 sm:h-32 justify-center items-center mb-2"></div>
+                    <div class="text-xs sm:text-sm uppercase tracking-widest text-emerald-200/50 font-bold bg-black/40 px-4 py-1 rounded-full">
+                        Your Hand <span id="player-score-label" class="text-white ml-1"></span>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Kontrollpaneel -->
-        <div class="w-full max-w-4xl mt-8 bg-gray-800/50 backdrop-blur border border-gray-700 p-4 sm:p-6 rounded-2xl shadow-xl">
-            <div id="controls-panel" class="flex flex-col sm:flex-row justify-between items-center gap-6">
-                <div class="text-gray-400 font-semibold text-lg animate-pulse">Kasiino laua vaatamiseks logi sisse</div>
+        <div class="w-full max-w-4xl mt-6 bg-slate-800/80 backdrop-blur border border-slate-700 p-4 sm:p-6 rounded-2xl shadow-xl">
+            <div id="controls-panel" class="flex flex-col sm:flex-row justify-center items-center gap-6">
+                <div class="text-slate-400 font-semibold text-sm sm:text-lg animate-pulse text-center">
+                    Please log in to play or spectate.
+                </div>
             </div>
         </div>
-
     </main>
 
-    <!-- Panganduse Modal (Deposit/Withdraw) -->
-    <div id="bank-modal" class="modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
-        <div class="bg-gray-800 border border-gray-700 p-8 rounded-2xl max-w-md w-full shadow-2xl relative">
-            <button onclick="closeModal('bank-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
-            <h2 class="text-2xl font-bold text-yellow-500 mb-6 flex items-center gap-2"><span class="text-3xl">🏦</span> Kasiino Pank</h2>
-            
-            <div class="space-y-6">
-                <div class="bg-gray-900 p-4 rounded-xl border border-gray-700">
-                    <h3 class="text-emerald-400 font-bold mb-2">📥 Kuidas Deposiiti teha? (Deposit)</h3>
-                    <p class="text-gray-300 text-sm leading-relaxed">
-                        Leia Minecrafti serveris kasiino admin (Kasiino omanik). Anna talle oma teemandid in-game. Ta lisab need sinu kontole manuaalselt lühikese aja jooksul.
-                    </p>
-                </div>
-
-                <div class="bg-gray-900 p-4 rounded-xl border border-gray-700">
-                    <h3 class="text-red-400 font-bold mb-2">📤 Kuidas Välja võtta? (Withdraw)</h3>
-                    <p class="text-gray-300 text-sm leading-relaxed">
-                        Saada adminile Discordis sõnum oma sooviga. Ta eemaldab kontolt raha ja viskab sulle teemandid serveris maha.
-                    </p>
-                </div>
-            </div>
-            
-            <button onclick="closeModal('bank-modal')" class="mt-8 w-full bg-gray-700 hover:bg-gray-600 py-3 rounded-lg font-bold transition">Sain aru</button>
+    <!-- Minecraft Nime Modal -->
+    <div id="mc-name-modal" class="modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl">
+            <h2 class="text-2xl font-bold text-white mb-2">Welcome!</h2>
+            <p class="text-slate-400 text-sm mb-6">Please link your Minecraft username to your Discord profile to continue.</p>
+            <input type="text" id="mc-username-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 mb-4" placeholder="Minecraft Username">
+            <button onclick="saveMcUsername()" class="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-bold transition">Save & Play</button>
         </div>
     </div>
 
-    <!-- Sõbrale Saatmise Modal -->
-    <div id="transfer-modal" class="modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
-        <div class="bg-gray-800 border border-gray-700 p-8 rounded-2xl max-w-md w-full shadow-2xl relative">
-            <button onclick="closeModal('transfer-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
-            <h2 class="text-2xl font-bold text-blue-400 mb-6 flex items-center gap-2"><span class="text-3xl">💸</span> Saada Sõbrale</h2>
-            
+    <!-- Panga Modal -->
+    <div id="bank-modal" class="modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl relative">
+            <button onclick="closeModal('bank-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">🏦 Cashier</h2>
             <div class="space-y-4">
-                <div>
-                    <label class="block text-gray-400 text-sm font-bold mb-2">Sõbra Minecrafti Nimi</label>
-                    <input type="text" id="transfer-target" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500" placeholder="nt. Steve">
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h3 class="text-emerald-400 font-bold mb-1">Deposit</h3>
+                    <p class="text-slate-300 text-sm">Find an admin in the Minecraft server and give them diamonds. They will update your web balance.</p>
                 </div>
-                <div>
-                    <label class="block text-gray-400 text-sm font-bold mb-2">Summa (Teemanti)</label>
-                    <input type="number" id="transfer-amount" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500" placeholder="10" min="1">
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h3 class="text-red-400 font-bold mb-1">Withdraw</h3>
+                    <p class="text-slate-300 text-sm">Message an admin on Discord. They will deduct your web balance and drop diamonds for you in-game.</p>
                 </div>
             </div>
-            
-            <button onclick="executeTransfer()" class="mt-8 w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-bold transition shadow-lg shadow-blue-600/30">Saada Teemandid</button>
+        </div>
+    </div>
+
+    <!-- Saatmise Modal -->
+    <div id="transfer-modal" class="modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl relative">
+            <button onclick="closeModal('transfer-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">💸 Send to Friend</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Friend's Minecraft Name</label>
+                    <input type="text" id="transfer-target" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Steve">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Amount (Diamonds)</label>
+                    <input type="number" id="transfer-amount" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500" placeholder="10" min="1">
+                </div>
+            </div>
+            <button onclick="executeTransfer()" class="mt-6 w-full bg-[#5865F2] hover:bg-[#4752C4] py-3 rounded-lg font-bold transition">Send Funds</button>
         </div>
     </div>
 
     <script>
-        // --- LOKAALNE SEIS ---
+        // --- SUPABASE SETUP ---
+        // PANE SIIA OMA SUPABASE VÕTMED!
+        const SUPABASE_URL = "https://xvvptdsdacuuzydaksbv.supabase.co"; 
+        const SUPABASE_ANON_KEY = "sb_secret_oJVUg24BlngQCooTRTj2jA_y5G5XdAh";
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         let currentUser = null;
+        let mcUsername = null;
         let currentBalance = 0;
+        
         let deck = [];
         let playerHand = [];
         let dealerHand = [];
@@ -223,7 +230,6 @@
         let gameActive = false;
         let isDealing = false;
 
-        // --- KAARDID ---
         const suits = ['♠', '♥', '♦', '♣'];
         const values = [
             { name: '2', val: 2 }, { name: '3', val: 3 }, { name: '4', val: 4 },
@@ -233,9 +239,81 @@
             { name: 'A', val: 11 }
         ];
 
+        // --- AUTH & DATABASE LOGIC ---
+        async function checkSession() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                await fetchProfile();
+            } else {
+                updateTopBar(false);
+            }
+        }
+
+        async function loginDiscord() {
+            await supabase.auth.signInWithOAuth({
+                provider: 'discord',
+                options: { redirectTo: window.location.origin }
+            });
+        }
+
+        async function logout() {
+            await supabase.auth.signOut();
+            currentUser = null;
+            mcUsername = null;
+            currentBalance = 0;
+            updateTopBar(false);
+        }
+
+        async function fetchProfile() {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('mc_username, balance')
+                .eq('id', currentUser.id)
+                .single();
+
+            if (data) {
+                currentBalance = data.balance || 0;
+                if (!data.mc_username) {
+                    openModal('mc-name-modal');
+                } else {
+                    mcUsername = data.mc_username;
+                    updateTopBar(true);
+                }
+            }
+        }
+
+        async function saveMcUsername() {
+            const input = document.getElementById('mc-username-input').value.trim();
+            if (!input) return alert("Please enter a name.");
+
+            const { error } = await supabase
+                .from('profiles')
+                .update({ mc_username: input })
+                .eq('id', currentUser.id);
+
+            if (!error) {
+                mcUsername = input;
+                closeModal('mc-name-modal');
+                updateTopBar(true);
+            } else {
+                alert("Error saving name: " + error.message);
+            }
+        }
+
+        async function updateDatabaseBalance(newBalance) {
+            currentBalance = newBalance;
+            const { error } = await supabase
+                .from('profiles')
+                .update({ balance: newBalance })
+                .eq('id', currentUser.id);
+            if(error) console.error("Balance update failed:", error);
+            updateTopBar(true);
+        }
+
         function createDeck() {
             let newDeck = [];
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 4; i++) { // 4 decks
                 for (let suit of suits) {
                     for (let value of values) {
                         newDeck.push({ ...value, suit });
@@ -255,28 +333,23 @@
             return score;
         }
 
-        // --- UI & RENDERING & ANIMATSIOONID ---
-        
-        // Loob uue DOM kaardi elemendi
         function createCardDOM(card, isHidden = false) {
             const el = document.createElement('div');
             el.className = "playing-card flex-shrink-0";
-            
             if (isHidden) {
                 el.classList.add('card-back');
+                el.innerHTML = '<span class="text-white/50 text-xl">🦆</span>';
             } else {
-                const isRed = (card.suit === '♥' || card.suit === '♦');
-                const colorClass = isRed ? 'text-red-600' : 'text-gray-900';
+                const colorClass = (card.suit === '♥' || card.suit === '♦') ? 'text-red-600' : 'text-slate-900';
                 el.innerHTML = `
-                    <div class="${colorClass} text-sm leading-none">${card.name}<br>${card.suit}</div>
-                    <div class="${colorClass} text-3xl text-center self-center">${card.suit}</div>
-                    <div class="${colorClass} text-sm leading-none text-right transform rotate-180">${card.name}<br>${card.suit}</div>
+                    <div class="${colorClass} text-xs sm:text-sm leading-none">${card.name}<br>${card.suit}</div>
+                    <div class="${colorClass} text-2xl sm:text-3xl text-center self-center">${card.suit}</div>
+                    <div class="${colorClass} text-xs sm:text-sm leading-none text-right transform rotate-180">${card.name}<br>${card.suit}</div>
                 `;
             }
             return el;
         }
 
-        // Animatsioon kaardipakist kätesse
         function animateCardDeal(cardData, targetContainerId, isHidden, delayMs) {
             return new Promise(resolve => {
                 setTimeout(() => {
@@ -286,36 +359,47 @@
                     const cardEl = createCardDOM(cardData, isHidden);
                     container.appendChild(cardEl);
                     
-                    // Leia, kuhu kaart lõpuks läheb
                     const targetPos = cardEl.getBoundingClientRect();
-                    
-                    // Arvuta delta paki ja sihtkoha vahel
                     const deltaX = deckPos.left - targetPos.left;
                     const deltaY = deckPos.top - targetPos.top;
                     
-                    // Sea kaardi algne asukoht paki juurde
                     cardEl.style.transform = `translate(${deltaX}px, ${deltaY}px) rotate(180deg) scale(0.5)`;
                     cardEl.style.opacity = '1';
                     
-                    // Sunnime brauserit stiili joonistama
-                    cardEl.offsetHeight; 
+                    cardEl.offsetHeight; // Force reflow
                     
-                    // Muuda transformi, et käivitada CSS transition
-                    cardEl.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'; // Väike põrge lõpus
+                    cardEl.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
                     cardEl.style.transform = `translate(0, 0) rotate(0deg) scale(1)`;
                     
-                    setTimeout(resolve, 500); // Oota animatsiooni lõppu
+                    setTimeout(resolve, 500);
                 }, delayMs);
             });
         }
 
-        async function initialDeal() {
+        async function startNewGame() {
+            if (gameActive || isDealing) return;
+            
+            currentBet = parseInt(document.getElementById('bet-input').value);
+            if (isNaN(currentBet) || currentBet <= 0 || currentBet > currentBalance) {
+                alert("Invalid bet amount or insufficient balance.");
+                return;
+            }
+
+            gameActive = true;
             isDealing = true;
+            await updateDatabaseBalance(currentBalance - currentBet);
+            
+            document.getElementById('table-message').innerText = "";
             document.getElementById('player-hand').innerHTML = '';
             document.getElementById('dealer-hand').innerHTML = '';
             hideResultBanner();
-            
-            // Animatsiooni järjestus
+            toggleDealControls(false);
+
+            deck = createDeck();
+            playerHand = [deck.pop(), deck.pop()];
+            dealerHand = [deck.pop(), deck.pop()];
+
+            // Animate initial deal
             await animateCardDeal(playerHand[0], 'player-hand', false, 0);
             updateScores(false);
             await animateCardDeal(dealerHand[0], 'dealer-hand', false, 200);
@@ -347,7 +431,7 @@
             isDealing = false;
 
             if (calculateScore(playerHand) > 21) {
-                endGame('lose', 'Lõhki!');
+                endGame('lose', 'BUST!');
             } else {
                 toggleGameButtons(true);
             }
@@ -358,20 +442,18 @@
             isDealing = true;
             toggleGameButtons(false);
 
-            // Näita diileri teist kaarti
+            // Flip hidden card
             const dHandContainer = document.getElementById('dealer-hand');
             dHandContainer.innerHTML = '';
             dealerHand.forEach(c => dHandContainer.appendChild(createCardDOM(c, false)));
-            // Eemalda transform, et nad lihtsalt oleksid seal
             Array.from(dHandContainer.children).forEach(el => {
                 el.style.opacity = '1'; el.style.transform = 'none'; el.style.transition = 'none';
             });
             updateScores(true);
 
-            await new Promise(r => setTimeout(r, 800)); // Paus enne diileri tõmbamist
+            await new Promise(r => setTimeout(r, 800));
 
             let dealerScore = calculateScore(dealerHand);
-
             while (dealerScore < 17) {
                 const newCard = deck.pop();
                 dealerHand.push(newCard);
@@ -384,25 +466,23 @@
             const playerScore = calculateScore(playerHand);
 
             if (dealerScore > 21) {
-                endGame('win', 'Diiler läks lõhki!');
+                endGame('win', 'DEALER BUSTS!');
             } else if (playerScore > dealerScore) {
-                endGame('win', 'Sa võitsid diilerit!');
+                endGame('win', 'YOU WIN!');
             } else if (playerScore === dealerScore) {
-                endGame('lose', `Viik. Kasiino võidab!`);
+                endGame('lose', 'PUSH (HOUSE WINS TIES)');
             } else {
-                endGame('lose', 'Diiler võitis.');
+                endGame('lose', 'DEALER WINS');
             }
         }
 
         function updateScores(showDealerHidden = false) {
             const pScore = calculateScore(playerHand);
             document.getElementById('player-score-label').innerText = pScore > 0 ? pScore : '';
-            
             if (showDealerHidden) {
                 const dScore = calculateScore(dealerHand);
                 document.getElementById('dealer-score-label').innerText = dScore > 0 ? dScore : '';
             } else if (dealerHand.length > 0) {
-                // Näita ainult esimese kaardi skoori
                 document.getElementById('dealer-score-label').innerText = dealerHand[0].val;
             } else {
                 document.getElementById('dealer-score-label').innerText = '';
@@ -414,11 +494,11 @@
             banner.innerText = text;
             banner.className = 'result-banner show';
             if (type === 'win') {
-                banner.classList.add('bg-green-600', 'border-green-400', 'text-white');
+                banner.classList.add('bg-emerald-600', 'border-emerald-400', 'text-white');
                 banner.classList.remove('bg-red-600', 'border-red-400');
             } else {
                 banner.classList.add('bg-red-600', 'border-red-400', 'text-white');
-                banner.classList.remove('bg-green-600', 'border-green-400');
+                banner.classList.remove('bg-emerald-600', 'border-emerald-400');
             }
         }
 
@@ -426,70 +506,39 @@
             document.getElementById('result-banner').classList.remove('show');
         }
 
-        // --- MÄNGU TSÜKKEL ---
-        function startNewGame() {
-            if (gameActive || isDealing) return;
-            
-            currentBet = parseInt(document.getElementById('bet-input').value);
-            if (isNaN(currentBet) || currentBet <= 0 || currentBet > currentBalance) {
-                alert("Vigane panus või pole piisavalt teemante.");
-                return;
-            }
-
-            gameActive = true;
-            currentBalance -= currentBet;
-            saveBalance();
-            updateTopBar();
-            
-            // Seadista laud
-            document.getElementById('deck-position').classList.remove('hidden');
-            toggleDealControls(false);
-
-            deck = createDeck();
-            playerHand = [deck.pop(), deck.pop()];
-            dealerHand = [deck.pop(), deck.pop()];
-
-            initialDeal();
-        }
-
-        function endGame(result, message) {
+        async function endGame(result, message) {
             gameActive = false;
             isDealing = false;
             
-            let resultText = "";
             if (result === 'win') {
-                const winnings = Math.floor(currentBet * 2); 
-                currentBalance += winnings;
-                saveBalance();
-                resultText = `VÕIT! +${winnings} 💎`;
+                const winnings = currentBet * 2;
+                await updateDatabaseBalance(currentBalance + winnings);
+                showResultBanner(result, `${message} +${winnings} 💎`);
             } else {
-                resultText = `KAOTUS! -${currentBet} 💎`;
+                showResultBanner(result, `${message} -${currentBet} 💎`);
             }
             
-            showResultBanner(result, resultText);
-            updateTopBar();
-            toggleDealControls(true); // Tagasi algsesse olekusse
+            setTimeout(() => { toggleDealControls(true); }, 1500);
         }
 
-        // --- NUPPUDE HALDUS ---
         function toggleDealControls(showDeal) {
             const controls = document.getElementById('controls-panel');
             if (showDeal) {
                 controls.innerHTML = `
                     <div class="flex flex-col sm:flex-row items-center gap-4 w-full justify-between">
-                        <div class="flex items-center gap-3 bg-gray-900 p-2 rounded-xl border border-gray-700 w-full sm:w-auto justify-center">
-                            <span class="text-gray-400 font-bold px-2">Panus:</span>
-                            <input type="number" id="bet-input" value="5" min="1" class="w-24 bg-gray-800 border-2 border-gray-600 text-center py-2 rounded-lg text-xl font-black text-yellow-400 focus:outline-none focus:border-yellow-500 shadow-inner">
+                        <div class="flex items-center gap-3 bg-slate-900 p-2 rounded-xl border border-slate-700 w-full sm:w-auto justify-center">
+                            <span class="text-slate-400 font-bold px-2">Bet:</span>
+                            <input type="number" id="bet-input" value="5" min="1" class="w-24 bg-slate-800 border border-slate-600 text-center py-2 rounded-lg text-xl font-bold text-white focus:outline-none focus:border-blue-500">
                             <span class="text-xl px-2">💎</span>
                         </div>
-                        <button id="deal-btn" onclick="startNewGame()" class="w-full sm:w-auto bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black text-xl px-12 py-4 rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.3)] transition transform hover:-translate-y-1">Deal</button>
+                        <button id="deal-btn" onclick="startNewGame()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg px-12 py-3 rounded-xl shadow-lg transition transform hover:-translate-y-1">Deal</button>
                     </div>
                 `;
             } else {
                 controls.innerHTML = `
                     <div class="flex justify-center w-full gap-4">
-                        <button id="hit-btn" onclick="hit()" class="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-xl px-8 py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none">Hit</button>
-                        <button id="stand-btn" onclick="stand()" class="flex-1 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black text-xl px-8 py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none">Stand</button>
+                        <button id="hit-btn" onclick="hit()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg px-8 py-3 rounded-xl shadow-lg transition transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none">Hit</button>
+                        <button id="stand-btn" onclick="stand()" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold text-lg px-8 py-3 rounded-xl shadow-lg transition transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none">Stand</button>
                     </div>
                 `;
             }
@@ -502,99 +551,82 @@
             if(standBtn) standBtn.disabled = !active;
         }
 
-
-        // --- KASUTAJA & PANGANDUS ---
-        function saveBalance() {
-            if(currentUser) localStorage.setItem('pardi_balance_' + currentUser, currentBalance);
-        }
-
-        function loadBalance() {
-            if(currentUser) {
-                let saved = localStorage.getItem('pardi_balance_' + currentUser);
-                currentBalance = saved ? parseInt(saved) : 50; // Annab uuele mängijale 50 demo teemanti
-            }
-        }
-
-        function updateTopBar() {
+        function updateTopBar(isLoggedIn) {
             const authContainer = document.getElementById('auth-section');
-            if (currentUser) {
+            if (isLoggedIn && mcUsername) {
                 authContainer.innerHTML = `
                     <div class="flex items-center gap-2 sm:gap-4 flex-wrap justify-end">
-                        <div class="bg-gray-900 border border-gray-700 px-4 py-2 rounded-full shadow-inner flex items-center gap-2">
-                            <span class="text-gray-400 text-sm hidden sm:inline">${currentUser}:</span>
-                            <span class="text-yellow-400 font-black text-lg glow-text">${currentBalance} 💎</span>
+                        <div class="bg-slate-900 border border-slate-700 px-4 py-2 rounded-lg shadow-inner flex items-center gap-2">
+                            <span class="text-slate-400 text-sm hidden sm:inline">${mcUsername}</span>
+                            <span class="text-white font-bold text-lg">${currentBalance} 💎</span>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="openModal('bank-modal')" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-bold transition">Pank</button>
-                            <button onclick="openModal('transfer-modal')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold transition">Saada</button>
-                            <button onclick="handleLogout()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold transition" title="Logi välja">❌</button>
+                            <button onclick="openModal('bank-modal')" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm font-bold transition">Bank</button>
+                            <button onclick="openModal('transfer-modal')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold transition">Send</button>
+                            <button onclick="logout()" class="bg-slate-800 hover:bg-slate-700 text-slate-400 px-3 py-2 rounded-lg text-sm transition" title="Log Out">✖</button>
                         </div>
                     </div>
                 `;
                 if (!gameActive) toggleDealControls(true);
             } else {
-                authContainer.innerHTML = `<button id="login-btn" onclick="handleLogin()" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 px-6 py-2 rounded-full font-bold transition shadow-lg shadow-yellow-500/20">Logi sisse</button>`;
-                document.getElementById('controls-panel').innerHTML = `<div class="text-gray-400 font-semibold text-lg animate-pulse w-full text-center">Mängimiseks logi sisse</div>`;
-                document.getElementById('deck-position').classList.add('hidden');
-                document.getElementById('player-hand').innerHTML = '';
-                document.getElementById('dealer-hand').innerHTML = '';
-                updateScores(false);
-                hideResultBanner();
+                authContainer.innerHTML = `
+                    <button id="login-discord-btn" onclick="loginDiscord()" class="bg-[#5865F2] hover:bg-[#4752C4] text-white px-6 py-2 rounded-lg font-bold transition shadow-lg flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+                        Login
+                    </button>
+                `;
+                document.getElementById('controls-panel').innerHTML = `<div class="text-slate-400 font-semibold text-sm sm:text-lg animate-pulse text-center w-full">Please log in to play or spectate.</div>`;
+                document.getElementById('table-message').innerText = "";
             }
         }
 
-        function handleLogin() {
-            const username = prompt("Sisesta oma Minecrafti kasutajanimi:");
-            if (username && username.trim().length > 0) {
-                currentUser = username.trim();
-                loadBalance();
-                updateTopBar();
-            }
-        }
+        // --- MODALS JA ÜLEKANDED ---
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-        function handleLogout() {
-            currentUser = null;
-            gameActive = false;
-            updateTopBar();
-        }
-
-        // --- MODALID JA ÜLEKANDED ---
-        function openModal(id) {
-            document.getElementById(id).classList.add('active');
-        }
-        function closeModal(id) {
-            document.getElementById(id).classList.remove('active');
-        }
-
-        function executeTransfer() {
-            const target = document.getElementById('transfer-target').value.trim();
+        async function executeTransfer() {
+            const targetName = document.getElementById('transfer-target').value.trim();
             const amount = parseInt(document.getElementById('transfer-amount').value);
 
-            if (!target || target === currentUser) {
-                alert("Vigane saaja nimi."); return;
-            }
-            if (isNaN(amount) || amount <= 0 || amount > currentBalance) {
-                alert("Sul pole piisavalt teemante."); return;
-            }
+            if (!targetName || targetName.toLowerCase() === mcUsername.toLowerCase()) return alert("Invalid target.");
+            if (isNaN(amount) || amount <= 0 || amount > currentBalance) return alert("Insufficient funds.");
 
-            // Kanna lokaalselt üle
-            currentBalance -= amount;
-            saveBalance();
-            
-            // Salvesta sõbra virtuaalsele kontole
-            let friendBal = localStorage.getItem('pardi_balance_' + target);
-            friendBal = friendBal ? parseInt(friendBal) : 0;
-            localStorage.setItem('pardi_balance_' + target, friendBal + amount);
+            // 1. Leia saaja
+            const { data: targetData, error: targetError } = await supabase
+                .from('profiles')
+                .select('id, balance')
+                .ilike('mc_username', targetName)
+                .single();
 
-            alert(`Edukas! Saatsid ${amount} 💎 mängijale ${target}.`);
+            if (targetError || !targetData) return alert("Player not found!");
+
+            // 2. Võta endalt raha maha
+            await updateDatabaseBalance(currentBalance - amount);
+
+            // 3. Anna sõbrale
+            await supabase
+                .from('profiles')
+                .update({ balance: targetData.balance + amount })
+                .eq('id', targetData.id);
+
+            alert(`Successfully sent ${amount} 💎 to ${targetName}!`);
             closeModal('transfer-modal');
-            updateTopBar();
             document.getElementById('transfer-target').value = '';
             document.getElementById('transfer-amount').value = '';
         }
 
-        // Init
-        document.getElementById('login-btn').addEventListener('click', handleLogin);
+        // --- INIT ---
+        document.getElementById('login-discord-btn').addEventListener('click', loginDiscord);
+        
+        // Jälgi sisselogimise staatust reaalajas
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                checkSession();
+            } else if (event === 'SIGNED_OUT') {
+                logout();
+            }
+        });
+
     </script>
 </body>
 </html>
