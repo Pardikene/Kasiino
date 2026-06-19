@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pardi Kasiino</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Laua ja tausta stiilid */
+        body {
+            background: linear-gradient(-45deg, #0f172a, #1e293b, #0f172a, #020617);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .casino-table-border {
+            background: linear-gradient(145deg, #2a1f1a, #1a120e);
+            border-radius: 120px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 5px 15px rgba(255,255,255,0.1);
+            padding: 20px;
+        }
+        .felt-table {
+            background: radial-gradient(ellipse at center, #0f6c3f 0%, #06381e 100%);
+            border-radius: 100px;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+            border: 2px solid #042413;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Kaartide stiilid ja animatsioonid */
+        .playing-card {
+            width: 80px;
+            height: 112px;
+            border-radius: 8px;
+            box-shadow: -2px 2px 10px rgba(0,0,0,0.4);
+            position: relative;
+            background-color: white;
+            color: black;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px;
+            border: 1px solid #ccc;
+            /* Algselt nähtamatu ja ootab animatsiooni */
+            opacity: 0;
+            will-change: transform, opacity;
+        }
+        .card-back {
+            background: repeating-linear-gradient(
+                45deg,
+                #60a5fa,
+                #60a5fa 10px,
+                #2563eb 10px,
+                #2563eb 20px
+            );
+            border: 4px solid white;
+        }
+        
+        /* Tekstide efektid */
+        .glow-text {
+            text-shadow: 0 0 10px rgba(234, 179, 8, 0.5);
+        }
+
+        /* Tulemuse banner (Võit/Kaotus) */
+        .result-banner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            padding: 1rem 3rem;
+            border-radius: 1rem;
+            font-size: 2.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 50;
+            white-space: nowrap;
+        }
+        .result-banner.show {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+        }
+
+        /* Modals */
+        .modal {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .modal.active {
+            display: flex;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="text-white font-sans min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="bg-gray-900/80 backdrop-blur-md border-b border-gray-800 p-4 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="w-12 h-12 flex items-center justify-center bg-gray-800 rounded-full shadow-inner border border-gray-700">
+                <span class="text-3xl">🦆</span>
+            </div>
+            
+            <div id="auth-section" class="flex items-center gap-4 w-full md:w-auto justify-end">
+                <!-- Sisselogimata olek -->
+                <button id="login-btn" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 px-6 py-2 rounded-full font-bold transition shadow-lg shadow-yellow-500/20">Logi sisse</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Area -->
+    <main class="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
+        
+        <!-- Laud -->
+        <div class="w-full max-w-5xl casino-table-border">
+            <div class="felt-table h-[500px] w-full flex flex-col justify-between p-6 sm:p-12">
+                
+                <!-- Kaardipakk (Füüsiline asukoht laual) -->
+                <div id="deck-position" class="absolute top-8 right-8 w-[80px] h-[112px] card-back rounded-lg shadow-2xl flex items-center justify-center hidden">
+                    <span class="text-white/50 font-bold text-xl">🦆</span>
+                </div>
+
+                <!-- Tulemuse teavitus -->
+                <div id="result-banner" class="result-banner bg-gray-900 border-4 text-white">VÕIT!</div>
+
+                <!-- Diileri ala -->
+                <div class="flex flex-col items-center z-10">
+                    <div class="text-xs sm:text-sm uppercase tracking-widest text-emerald-200/50 font-bold mb-2 bg-black/30 px-4 py-1 rounded-full">
+                        Diiler <span id="dealer-score-label" class="text-yellow-400 ml-1"></span>
+                    </div>
+                    <div id="dealer-hand" class="flex gap-[-2rem] sm:gap-2 h-32 justify-center items-center">
+                        <!-- Kaardid ilmuvad siia -->
+                    </div>
+                </div>
+
+                <!-- Mängija ala -->
+                <div class="flex flex-col items-center z-10">
+                    <div id="player-hand" class="flex gap-[-2rem] sm:gap-2 h-32 justify-center items-center mb-2">
+                        <!-- Kaardid ilmuvad siia -->
+                    </div>
+                    <div class="text-xs sm:text-sm uppercase tracking-widest text-emerald-200/50 font-bold bg-black/30 px-4 py-1 rounded-full">
+                        Sinu käsi <span id="player-score-label" class="text-yellow-400 ml-1"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kontrollpaneel -->
+        <div class="w-full max-w-4xl mt-8 bg-gray-800/50 backdrop-blur border border-gray-700 p-4 sm:p-6 rounded-2xl shadow-xl">
+            <div id="controls-panel" class="flex flex-col sm:flex-row justify-between items-center gap-6">
+                <div class="text-gray-400 font-semibold text-lg animate-pulse">Kasiino laua vaatamiseks logi sisse</div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Panganduse Modal (Deposit/Withdraw) -->
+    <div id="bank-modal" class="modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+        <div class="bg-gray-800 border border-gray-700 p-8 rounded-2xl max-w-md w-full shadow-2xl relative">
+            <button onclick="closeModal('bank-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold text-yellow-500 mb-6 flex items-center gap-2"><span class="text-3xl">🏦</span> Kasiino Pank</h2>
+            
+            <div class="space-y-6">
+                <div class="bg-gray-900 p-4 rounded-xl border border-gray-700">
+                    <h3 class="text-emerald-400 font-bold mb-2">📥 Kuidas Deposiiti teha? (Deposit)</h3>
+                    <p class="text-gray-300 text-sm leading-relaxed">
+                        Leia Minecrafti serveris kasiino admin (Kasiino omanik). Anna talle oma teemandid in-game. Ta lisab need sinu kontole manuaalselt lühikese aja jooksul.
+                    </p>
+                </div>
+
+                <div class="bg-gray-900 p-4 rounded-xl border border-gray-700">
+                    <h3 class="text-red-400 font-bold mb-2">📤 Kuidas Välja võtta? (Withdraw)</h3>
+                    <p class="text-gray-300 text-sm leading-relaxed">
+                        Saada adminile Discordis sõnum oma sooviga. Ta eemaldab kontolt raha ja viskab sulle teemandid serveris maha.
+                    </p>
+                </div>
+            </div>
+            
+            <button onclick="closeModal('bank-modal')" class="mt-8 w-full bg-gray-700 hover:bg-gray-600 py-3 rounded-lg font-bold transition">Sain aru</button>
+        </div>
+    </div>
+
+    <!-- Sõbrale Saatmise Modal -->
+    <div id="transfer-modal" class="modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+        <div class="bg-gray-800 border border-gray-700 p-8 rounded-2xl max-w-md w-full shadow-2xl relative">
+            <button onclick="closeModal('transfer-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold text-blue-400 mb-6 flex items-center gap-2"><span class="text-3xl">💸</span> Saada Sõbrale</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-gray-400 text-sm font-bold mb-2">Sõbra Minecrafti Nimi</label>
+                    <input type="text" id="transfer-target" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500" placeholder="nt. Steve">
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-sm font-bold mb-2">Summa (Teemanti)</label>
+                    <input type="number" id="transfer-amount" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500" placeholder="10" min="1">
+                </div>
+            </div>
+            
+            <button onclick="executeTransfer()" class="mt-8 w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-bold transition shadow-lg shadow-blue-600/30">Saada Teemandid</button>
+        </div>
+    </div>
+
+    <script>
+        // --- LOKAALNE SEIS ---
+        let currentUser = null;
+        let currentBalance = 0;
+        let deck = [];
+        let playerHand = [];
+        let dealerHand = [];
+        let currentBet = 0;
+        let gameActive = false;
+        let isDealing = false;
+
+        // --- KAARDID ---
+        const suits = ['♠', '♥', '♦', '♣'];
+        const values = [
+            { name: '2', val: 2 }, { name: '3', val: 3 }, { name: '4', val: 4 },
+            { name: '5', val: 5 }, { name: '6', val: 6 }, { name: '7', val: 7 },
+            { name: '8', val: 8 }, { name: '9', val: 9 }, { name: '10', val: 10 },
+            { name: 'J', val: 10 }, { name: 'Q', val: 10 }, { name: 'K', val: 10 },
+            { name: 'A', val: 11 }
+        ];
+
+        function createDeck() {
+            let newDeck = [];
+            for (let i = 0; i < 6; i++) {
+                for (let suit of suits) {
+                    for (let value of values) {
+                        newDeck.push({ ...value, suit });
+                    }
+                }
+            }
+            return newDeck.sort(() => Math.random() - 0.5);
+        }
+
+        function calculateScore(hand) {
+            let score = hand.reduce((acc, card) => acc + card.val, 0);
+            let aces = hand.filter(card => card.name === 'A').length;
+            while (score > 21 && aces > 0) {
+                score -= 10;
+                aces -= 1;
+            }
+            return score;
+        }
+
+        // --- UI & RENDERING & ANIMATSIOONID ---
+        
+        // Loob uue DOM kaardi elemendi
+        function createCardDOM(card, isHidden = false) {
+            const el = document.createElement('div');
+            el.className = "playing-card flex-shrink-0";
+            
+            if (isHidden) {
+                el.classList.add('card-back');
+            } else {
+                const isRed = (card.suit === '♥' || card.suit === '♦');
+                const colorClass = isRed ? 'text-red-600' : 'text-gray-900';
+                el.innerHTML = `
+                    <div class="${colorClass} text-sm leading-none">${card.name}<br>${card.suit}</div>
+                    <div class="${colorClass} text-3xl text-center self-center">${card.suit}</div>
+                    <div class="${colorClass} text-sm leading-none text-right transform rotate-180">${card.name}<br>${card.suit}</div>
+                `;
+            }
+            return el;
+        }
+
+        // Animatsioon kaardipakist kätesse
+        function animateCardDeal(cardData, targetContainerId, isHidden, delayMs) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const deckPos = document.getElementById('deck-position').getBoundingClientRect();
+                    const container = document.getElementById(targetContainerId);
+                    
+                    const cardEl = createCardDOM(cardData, isHidden);
+                    container.appendChild(cardEl);
+                    
+                    // Leia, kuhu kaart lõpuks läheb
+                    const targetPos = cardEl.getBoundingClientRect();
+                    
+                    // Arvuta delta paki ja sihtkoha vahel
+                    const deltaX = deckPos.left - targetPos.left;
+                    const deltaY = deckPos.top - targetPos.top;
+                    
+                    // Sea kaardi algne asukoht paki juurde
+                    cardEl.style.transform = `translate(${deltaX}px, ${deltaY}px) rotate(180deg) scale(0.5)`;
+                    cardEl.style.opacity = '1';
+                    
+                    // Sunnime brauserit stiili joonistama
+                    cardEl.offsetHeight; 
+                    
+                    // Muuda transformi, et käivitada CSS transition
+                    cardEl.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'; // Väike põrge lõpus
+                    cardEl.style.transform = `translate(0, 0) rotate(0deg) scale(1)`;
+                    
+                    setTimeout(resolve, 500); // Oota animatsiooni lõppu
+                }, delayMs);
+            });
+        }
+
+        async function initialDeal() {
+            isDealing = true;
+            document.getElementById('player-hand').innerHTML = '';
+            document.getElementById('dealer-hand').innerHTML = '';
+            hideResultBanner();
+            
+            // Animatsiooni järjestus
+            await animateCardDeal(playerHand[0], 'player-hand', false, 0);
+            updateScores(false);
+            await animateCardDeal(dealerHand[0], 'dealer-hand', false, 200);
+            updateScores(false);
+            await animateCardDeal(playerHand[1], 'player-hand', false, 200);
+            updateScores(false);
+            await animateCardDeal(dealerHand[1], 'dealer-hand', true, 200);
+            
+            isDealing = false;
+            
+            if (calculateScore(playerHand) === 21) {
+                setTimeout(stand, 500);
+            } else {
+                toggleGameButtons(true);
+            }
+        }
+
+        async function hit() {
+            if (isDealing || !gameActive) return;
+            isDealing = true;
+            toggleGameButtons(false);
+
+            const newCard = deck.pop();
+            playerHand.push(newCard);
+            
+            await animateCardDeal(newCard, 'player-hand', false, 0);
+            updateScores(false);
+            
+            isDealing = false;
+
+            if (calculateScore(playerHand) > 21) {
+                endGame('lose', 'Lõhki!');
+            } else {
+                toggleGameButtons(true);
+            }
+        }
+
+        async function stand() {
+            if (isDealing || !gameActive) return;
+            isDealing = true;
+            toggleGameButtons(false);
+
+            // Näita diileri teist kaarti
+            const dHandContainer = document.getElementById('dealer-hand');
+            dHandContainer.innerHTML = '';
+            dealerHand.forEach(c => dHandContainer.appendChild(createCardDOM(c, false)));
+            // Eemalda transform, et nad lihtsalt oleksid seal
+            Array.from(dHandContainer.children).forEach(el => {
+                el.style.opacity = '1'; el.style.transform = 'none'; el.style.transition = 'none';
+            });
+            updateScores(true);
+
+            await new Promise(r => setTimeout(r, 800)); // Paus enne diileri tõmbamist
+
+            let dealerScore = calculateScore(dealerHand);
+
+            while (dealerScore < 17) {
+                const newCard = deck.pop();
+                dealerHand.push(newCard);
+                await animateCardDeal(newCard, 'dealer-hand', false, 0);
+                dealerScore = calculateScore(dealerHand);
+                updateScores(true);
+                await new Promise(r => setTimeout(r, 600));
+            }
+
+            const playerScore = calculateScore(playerHand);
+
+            if (dealerScore > 21) {
+                endGame('win', 'Diiler läks lõhki!');
+            } else if (playerScore > dealerScore) {
+                endGame('win', 'Sa võitsid diilerit!');
+            } else if (playerScore === dealerScore) {
+                endGame('lose', `Viik. Kasiino võidab!`);
+            } else {
+                endGame('lose', 'Diiler võitis.');
+            }
+        }
+
+        function updateScores(showDealerHidden = false) {
+            const pScore = calculateScore(playerHand);
+            document.getElementById('player-score-label').innerText = pScore > 0 ? pScore : '';
+            
+            if (showDealerHidden) {
+                const dScore = calculateScore(dealerHand);
+                document.getElementById('dealer-score-label').innerText = dScore > 0 ? dScore : '';
+            } else if (dealerHand.length > 0) {
+                // Näita ainult esimese kaardi skoori
+                document.getElementById('dealer-score-label').innerText = dealerHand[0].val;
+            } else {
+                document.getElementById('dealer-score-label').innerText = '';
+            }
+        }
+
+        function showResultBanner(type, text) {
+            const banner = document.getElementById('result-banner');
+            banner.innerText = text;
+            banner.className = 'result-banner show';
+            if (type === 'win') {
+                banner.classList.add('bg-green-600', 'border-green-400', 'text-white');
+                banner.classList.remove('bg-red-600', 'border-red-400');
+            } else {
+                banner.classList.add('bg-red-600', 'border-red-400', 'text-white');
+                banner.classList.remove('bg-green-600', 'border-green-400');
+            }
+        }
+
+        function hideResultBanner() {
+            document.getElementById('result-banner').classList.remove('show');
+        }
+
+        // --- MÄNGU TSÜKKEL ---
+        function startNewGame() {
+            if (gameActive || isDealing) return;
+            
+            currentBet = parseInt(document.getElementById('bet-input').value);
+            if (isNaN(currentBet) || currentBet <= 0 || currentBet > currentBalance) {
+                alert("Vigane panus või pole piisavalt teemante.");
+                return;
+            }
+
+            gameActive = true;
+            currentBalance -= currentBet;
+            saveBalance();
+            updateTopBar();
+            
+            // Seadista laud
+            document.getElementById('deck-position').classList.remove('hidden');
+            toggleDealControls(false);
+
+            deck = createDeck();
+            playerHand = [deck.pop(), deck.pop()];
+            dealerHand = [deck.pop(), deck.pop()];
+
+            initialDeal();
+        }
+
+        function endGame(result, message) {
+            gameActive = false;
+            isDealing = false;
+            
+            let resultText = "";
+            if (result === 'win') {
+                const winnings = Math.floor(currentBet * 2); 
+                currentBalance += winnings;
+                saveBalance();
+                resultText = `VÕIT! +${winnings} 💎`;
+            } else {
+                resultText = `KAOTUS! -${currentBet} 💎`;
+            }
+            
+            showResultBanner(result, resultText);
+            updateTopBar();
+            toggleDealControls(true); // Tagasi algsesse olekusse
+        }
+
+        // --- NUPPUDE HALDUS ---
+        function toggleDealControls(showDeal) {
+            const controls = document.getElementById('controls-panel');
+            if (showDeal) {
+                controls.innerHTML = `
+                    <div class="flex flex-col sm:flex-row items-center gap-4 w-full justify-between">
+                        <div class="flex items-center gap-3 bg-gray-900 p-2 rounded-xl border border-gray-700 w-full sm:w-auto justify-center">
+                            <span class="text-gray-400 font-bold px-2">Panus:</span>
+                            <input type="number" id="bet-input" value="5" min="1" class="w-24 bg-gray-800 border-2 border-gray-600 text-center py-2 rounded-lg text-xl font-black text-yellow-400 focus:outline-none focus:border-yellow-500 shadow-inner">
+                            <span class="text-xl px-2">💎</span>
+                        </div>
+                        <button id="deal-btn" onclick="startNewGame()" class="w-full sm:w-auto bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black text-xl px-12 py-4 rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.3)] transition transform hover:-translate-y-1">Deal</button>
+                    </div>
+                `;
+            } else {
+                controls.innerHTML = `
+                    <div class="flex justify-center w-full gap-4">
+                        <button id="hit-btn" onclick="hit()" class="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-xl px-8 py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none">Hit</button>
+                        <button id="stand-btn" onclick="stand()" class="flex-1 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black text-xl px-8 py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none">Stand</button>
+                    </div>
+                `;
+            }
+        }
+
+        function toggleGameButtons(active) {
+            const hitBtn = document.getElementById('hit-btn');
+            const standBtn = document.getElementById('stand-btn');
+            if(hitBtn) hitBtn.disabled = !active;
+            if(standBtn) standBtn.disabled = !active;
+        }
+
+
+        // --- KASUTAJA & PANGANDUS ---
+        function saveBalance() {
+            if(currentUser) localStorage.setItem('pardi_balance_' + currentUser, currentBalance);
+        }
+
+        function loadBalance() {
+            if(currentUser) {
+                let saved = localStorage.getItem('pardi_balance_' + currentUser);
+                currentBalance = saved ? parseInt(saved) : 50; // Annab uuele mängijale 50 demo teemanti
+            }
+        }
+
+        function updateTopBar() {
+            const authContainer = document.getElementById('auth-section');
+            if (currentUser) {
+                authContainer.innerHTML = `
+                    <div class="flex items-center gap-2 sm:gap-4 flex-wrap justify-end">
+                        <div class="bg-gray-900 border border-gray-700 px-4 py-2 rounded-full shadow-inner flex items-center gap-2">
+                            <span class="text-gray-400 text-sm hidden sm:inline">${currentUser}:</span>
+                            <span class="text-yellow-400 font-black text-lg glow-text">${currentBalance} 💎</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="openModal('bank-modal')" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-bold transition">Pank</button>
+                            <button onclick="openModal('transfer-modal')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold transition">Saada</button>
+                            <button onclick="handleLogout()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold transition" title="Logi välja">❌</button>
+                        </div>
+                    </div>
+                `;
+                if (!gameActive) toggleDealControls(true);
+            } else {
+                authContainer.innerHTML = `<button id="login-btn" onclick="handleLogin()" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 px-6 py-2 rounded-full font-bold transition shadow-lg shadow-yellow-500/20">Logi sisse</button>`;
+                document.getElementById('controls-panel').innerHTML = `<div class="text-gray-400 font-semibold text-lg animate-pulse w-full text-center">Mängimiseks logi sisse</div>`;
+                document.getElementById('deck-position').classList.add('hidden');
+                document.getElementById('player-hand').innerHTML = '';
+                document.getElementById('dealer-hand').innerHTML = '';
+                updateScores(false);
+                hideResultBanner();
+            }
+        }
+
+        function handleLogin() {
+            const username = prompt("Sisesta oma Minecrafti kasutajanimi:");
+            if (username && username.trim().length > 0) {
+                currentUser = username.trim();
+                loadBalance();
+                updateTopBar();
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            gameActive = false;
+            updateTopBar();
+        }
+
+        // --- MODALID JA ÜLEKANDED ---
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function executeTransfer() {
+            const target = document.getElementById('transfer-target').value.trim();
+            const amount = parseInt(document.getElementById('transfer-amount').value);
+
+            if (!target || target === currentUser) {
+                alert("Vigane saaja nimi."); return;
+            }
+            if (isNaN(amount) || amount <= 0 || amount > currentBalance) {
+                alert("Sul pole piisavalt teemante."); return;
+            }
+
+            // Kanna lokaalselt üle
+            currentBalance -= amount;
+            saveBalance();
+            
+            // Salvesta sõbra virtuaalsele kontole
+            let friendBal = localStorage.getItem('pardi_balance_' + target);
+            friendBal = friendBal ? parseInt(friendBal) : 0;
+            localStorage.setItem('pardi_balance_' + target, friendBal + amount);
+
+            alert(`Edukas! Saatsid ${amount} 💎 mängijale ${target}.`);
+            closeModal('transfer-modal');
+            updateTopBar();
+            document.getElementById('transfer-target').value = '';
+            document.getElementById('transfer-amount').value = '';
+        }
+
+        // Init
+        document.getElementById('login-btn').addEventListener('click', handleLogin);
+    </script>
+</body>
+</html>
